@@ -10,6 +10,9 @@
 
 
 void Clear();
+void clearTerminal();
+void PrintFPS();
+
 
 char* readShaderSource(const char* shaderFilePath);
 GLuint compileShader(GLenum type, const char* source);
@@ -18,87 +21,103 @@ GLuint linkProgram(GLuint vertexShader, GLuint fragmentShader);
 GLuint initializeShaders();
 void deleteShaderPrograms(GLuint shaderProgram);
 
-const int screenWidth  = 1920;
-const int screenHeight = 1080;
+
+void framebuffer_size_callback(GLFWwindow* window, int width, int height);
+
+int screenWidth, screenHeight;
 
 int main(void) {
-    GLFWwindow* window;
+GLFWwindow* window;
 
-    // Initialize the library
-    if (!glfwInit()) return -1;
+// Initialize the library
+if (!glfwInit()) return -1;
 
-    // Create a windowed mode window and its OpenGL context
-    window = glfwCreateWindow(640, 480, "Glfw", NULL, NULL);
-    if (!window)
-    {
-        glfwTerminate();
-        return -1;
-    }
+// Create a windowed mode window and its OpenGL context
+window = glfwCreateWindow(640, 480, "Glfw", NULL, NULL);
+if (!window) {
+    glfwTerminate();
+    return -1;
+}
 
-    // Make the window's context current
-    glfwMakeContextCurrent(window);
+// Make the window's context current
+glfwMakeContextCurrent(window);
 
-    printf("OpenGL Version: %s\n", glGetString(GL_VERSION));
+glfwSwapInterval(1); // Call this right after creating the window and making its context current
 
+printf("OpenGL Version: %s\n", glGetString(GL_VERSION));
 
-    // Initialize GLEW
-    GLenum err = glewInit();
-    if (err != GLEW_OK) {
-        fprintf(stderr, "Error: %s\n", glewGetErrorString(err));
-        glfwTerminate();
-        return -1;
-    }
+glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
 
 
-    float vertices[] = {
-        // Positions         // Colors
-        -0.5f, -0.5f, 0.0f,  1.0f, 0.0f, 0.0f, // Red
-        0.0f,  0.5f,  0.0f,  0.0f, 0.0f, 1.0f, // Green
-        0.5f,  -0.5f, 0.0f,  0.0f, 1.0f, 0.0f  // Blue
-    };
-
-    // Vertex Buffer Object, Vertex Array Object
-    unsigned int VBO, VAO;
-    glGenVertexArrays(1, &VAO);
-    glGenBuffers(1, &VBO);
-
-    // Bind the VAO and VBO, and upload the vertex data to the buffer.
-    glBindVertexArray(VAO);
-    glBindBuffer(GL_ARRAY_BUFFER, VBO);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+// Initialize GLEW
+GLenum err = glewInit();
+if (err != GLEW_OK) {
+    fprintf(stderr, "Error: %s\n", glewGetErrorString(err));
+    glfwTerminate();
+    return -1;
+}
 
 
+float vertices[] = {
+    // Positions          // Colors
+    -0.5f,  -0.5f, 0.0f,  1.0f, 0.0f, 0.0f, // Red
+     0.0f,   0.5f, 0.0f,  0.0f, 0.0f, 1.0f, // Green
+     0.5f,  -0.5f, 0.0f,  0.0f, 1.0f, 0.0f  // Blue
+};
 
-    // Specify how OpenGL should interpret the vertex data.
-    /* glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0); */
-    /* glEnableVertexAttribArray(0); */
+// Vertex Buffer Object, Vertex Array Object
+unsigned int VBO, VAO;
+glGenVertexArrays(1, &VAO);
+glGenBuffers(1, &VBO);
 
-    // Position attribute
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)0);
-    glEnableVertexAttribArray(0);
-
-    // Color attribute
-    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)(3 * sizeof(float)));
-    glEnableVertexAttribArray(1);
+// Bind the VAO and VBO, and upload the vertex data to the buffer.
+glBindVertexArray(VAO);
+glBindBuffer(GL_ARRAY_BUFFER, VBO);
+glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
 
 
+// Specify how OpenGL should interpret the vertex data.
+
+// Position attribute
+glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)0);
+glEnableVertexAttribArray(0);
+
+// Color attribute
+glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)(3 * sizeof(float)));
+glEnableVertexAttribArray(1);
 
 
-    GLuint shaderProgram = initializeShaders();
-    if (!shaderProgram) {
-        fprintf(stderr, "Failed to initialize shaders.\n");
-        return -1;
-    }
 
+
+GLuint shaderProgram = initializeShaders();
+if (!shaderProgram) {
+    fprintf(stderr, "Failed to initialize shaders.\n");
+    return -1;
+}
+
+
+// Get the location of the 'time' uniform
+GLint timeUniformLocation = glGetUniformLocation(shaderProgram, "time");
 
     while (!glfwWindowShouldClose(window))
     {
+
+        // Set the time uniform
+        float currentTime = glfwGetTime();
+        glUniform1f(timeUniformLocation, currentTime);
+
+
         // Render here
         Clear();
 
-
         // Use the shader program
         glUseProgram(shaderProgram);
+
+
+        /* GLuint iResolutionLocation = glGetUniformLocation(shaderProgram, "iResolution"); */
+        /* glUniform2f(iResolutionLocation, screenWidth, screenHeight); */
+
+
 
         // Bind the VAO
         glBindVertexArray(VAO);
@@ -120,7 +139,20 @@ int main(void) {
     glDeleteVertexArrays(1, &VAO);
     glDeleteBuffers(1, &VBO);
     glfwTerminate();
+    clearTerminal();
     return 0;
+}
+
+
+bool printWindowSize = false;
+void framebuffer_size_callback(GLFWwindow* window, int width, int height) {
+    screenWidth = width;
+    screenHeight = height;
+    if(printWindowSize){
+        printf("Width: %d Height: %d\n", screenWidth, screenHeight);
+    }
+    glViewport(0, 0, width, height);
+    // Update any projection matrices here
 }
 
 
@@ -233,34 +265,48 @@ bool clearOnlyOnce = false;
 bool colorCleared = 0;
 float background[4] = {0.043f, 0.043f, 0.043f, 1.0f};
 
-/* void Clear() { */
-/*     if (clearOnlyOnce && !colorCleared) { */
-/*         glClearColor(background[0], background[1], background[2], background[3]); */
-/*         printf("cleared\n"); */
-/*         colorCleared = true; */
-/*     } else if (!clearOnlyOnce) { */
-/*         glClearColor(background[0], background[1], background[2], background[3]); */
-/*         printf("cleared\n"); */
-/*     } */
-
-/*     glClear(GL_COLOR_BUFFER_BIT); */
-/* } */
-
 void Clear() {
-    static int clearCount = 0; // Static variable to count clears
-    int colorChangeFrequency = 16; // Number of clears before changing color
+    static int clearCount = 0;
+    int colorChangeFrequency = 16;
 
     if (clearOnlyOnce && !colorCleared) {
         glClearColor(background[0], background[1], background[2], background[3]);
-        printf("\033[1;31mcleared\033[0m\n"); // Red color for first clear
+        printf("\033[1;31mCleared %d → ", clearCount); // Red color for first clear
+        PrintFPS();
+        printf("\033[0m\n");
         colorCleared = true;
-        clearCount++;
     } else if (!clearOnlyOnce) {
         glClearColor(background[0], background[1], background[2], background[3]);
         // Change text color based on clearCount
-        printf("\033[1;%dmcleared %d\033[0m\n", 31 + ((clearCount / colorChangeFrequency) % 6), clearCount);
-        clearCount++;
+        printf("\033[1;%dmCleared %d → ", 31 + ((clearCount / colorChangeFrequency) % 6), clearCount);
+        PrintFPS(); // Print FPS
+        printf("\033[0m\n");
+    }
+    clearCount++;
+    glClear(GL_COLOR_BUFFER_BIT);
+}
+
+void PrintFPS() {
+    static int frameCount = 0;
+    static double lastTime = 0;
+    static double fpsPrintLimit = 0; // no limit
+
+    if (lastTime == 0) {
+        lastTime = glfwGetTime(); // Initialize lastTime during the first call
     }
 
-    glClear(GL_COLOR_BUFFER_BIT);
+    double currentTime = glfwGetTime();
+    frameCount++;
+
+    bool shouldPrintFPS = (fpsPrintLimit == 0) || (currentTime - lastTime >= 1.0 / fpsPrintLimit);
+    if (shouldPrintFPS) {
+        double fps = frameCount / (currentTime - lastTime);
+        printf("FPS: %.2f", fps);
+        frameCount = 0;
+        lastTime = currentTime;
+    }
+}
+
+void clearTerminal(){
+    printf("\033[H\033[J");
 }
